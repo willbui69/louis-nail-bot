@@ -1,13 +1,16 @@
 import { google } from 'googleapis'
-import path from 'path'
 import { JWT } from 'google-auth-library'
 
+// ✅ These should be set in Render's Environment Variables
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID as string
-const SHEET_NAME = 'Bookings' // your tab name
-const SERVICE_ACCOUNT_KEY_PATH = path.join(__dirname, '../google-service-account.json')
+const SHEET_NAME = 'Bookings'
+const SERVICE_ACCOUNT_JSON = process.env.GOOGLE_SERVICE_ACCOUNT_JSON as string
+
+// ✅ Parse the service account credentials from env
+const serviceAccount = JSON.parse(SERVICE_ACCOUNT_JSON)
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: SERVICE_ACCOUNT_KEY_PATH,
+  credentials: serviceAccount,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 })
 
@@ -30,9 +33,9 @@ export async function appendBookingToGoogleSheet(booking: any) {
   try {
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_NAME, // ✅ Just sheet name
+      range: SHEET_NAME,
       valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS', // ✅ Ensure rows are added properly
+      insertDataOption: 'INSERT_ROWS',
       requestBody: { values },
     })
 

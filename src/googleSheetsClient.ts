@@ -1,9 +1,12 @@
 import { google } from 'googleapis'
-import { readFileSync } from 'fs'
+import { JWT } from 'google-auth-library'
 
-const auth = new google.auth.GoogleAuth({
-  keyFile: 'google-service-account.json',
+const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON as string)
+
+const client = new google.auth.JWT({
+  email: credentials.client_email,
+  key: credentials.private_key,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 })
 
-export const sheets = google.sheets({ version: 'v4', auth })
+export const sheets = google.sheets({ version: 'v4', auth: client })
