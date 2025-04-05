@@ -14,7 +14,9 @@
     "@supabase/supabase-js": "^2.49.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "node-fetch": "^3.3.2"
+    "googleapis": "^148.0.0",
+    "node-fetch": "^3.3.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/dotenv": "^6.1.1",

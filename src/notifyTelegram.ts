@@ -1,28 +1,29 @@
 import fetch from 'node-fetch'
 import dotenv from 'dotenv'
+import { supabase } from './supabaseClient'
+
 dotenv.config()
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN as string
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID as string
 
-// Mapping from service_id to human-readable service name
+// 🇩🇪 Dienstleistungsnamen auf Deutsch
 const serviceNameMap: Record<string, string> = {
-  'glitter-new': 'With Glitter/Color/Gel',
-  'glitter-refill': 'With Glitter/Color/Gel (Refill)',
-  'manicure': 'Manicure',
-  'natural-tip-new': 'Natural Tip',
-  'natural-tip-refill': 'Natural Tip (Refill)',
-  'ombre-new': 'Ombre (Baby Boomer)',
-  'ombre-refill': 'Ombre (Baby Boomer) (Refill)',
-  'pedicure': 'Pedicure',
-  'pedicure-shellac': 'Pedicure with Shellac',
-  'pink-white-new': 'Pink & White',
-  'pink-white-refill': 'Pink & White (Refill)',
-  'shellac-manicure': 'Shellac with Manicure',
-  'shellac-removal': 'Shellac Removal',
+  'glitter-new': 'Mit Glitzer/Farbe/Gel',
+  'glitter-refill': 'Mit Glitzer/Farbe/Gel (Auffüllen)',
+  'manicure': 'Maniküre',
+  'natural-tip-new': 'Natürliche Spitzen',
+  'natural-tip-refill': 'Natürliche Spitzen (Auffüllen)',
+  'ombre-new': 'Ombre (Babyboomer)',
+  'ombre-refill': 'Ombre (Auffüllen)',
+  'pedicure': 'Pediküre',
+  'pedicure-shellac': 'Pediküre mit Shellac',
+  'pink-white-new': 'Pink & Weiß',
+  'pink-white-refill': 'Pink & Weiß (Auffüllen)',
+  'shellac-manicure': 'Shellac mit Maniküre',
+  'shellac-removal': 'Shellac Entfernung',
 }
 
-// Define Telegram API response shape for type safety
 type TelegramAPIResponse = {
   ok: boolean
   result?: any
@@ -30,29 +31,57 @@ type TelegramAPIResponse = {
   error_code?: number
 }
 
-export async function notifyTelegram(client: any) {
-  const readableServiceName = serviceNameMap[client.service_id] || client.service_id
+export async function notifyTelegram(booking: any) {
+  const bookingId = booking.id
 
+  // ⬇️ Hole die zugehörigen Dienstleistungen
+  const { data: bookingServices, error } = await supabase
+    .from('booking_services')
+    .select('service_id')
+    .eq('booking_id', bookingId)
+
+  if (error || !bookingServices) {
+    console.error('❌ Fehler beim Abrufen der Dienstleistungen:', error)
+    return
+  }
+
+  // ✍️ Formatierte Namen
+  const serviceNames = bookingServices.map(bs =>
+    serviceNameMap[bs.service_id] || bs.service_id
+  )
+
+  const formattedServices = serviceNames.length
+    ? serviceNames.map(name => `• ${name}`).join('\n')
+    : 'Nicht angegeben'
+
+  // 📅 Format: YYYY-MM-DD
+  const bookedDate = booking.created_at
+    ? new Date(booking.created_at).toISOString().split('T')[0]
+    : 'Nicht verfügbar'
+
+  // 📩 Nachricht auf Deutsch
   const message = `
-🔔 *New Booking Alert!*
+🔔 *Neue Buchung!*
 
-🛎 *Service:* ${readableServiceName}
-👩‍💼 *Staff:* ${client.staff_id}
-📅 *Date:* ${client.booking_date}
-⏰ *Time:* ${client.booking_time}
+🛎 *Dienstleistungen:*
+${formattedServices}
 
-👤 *Customer:* ${client.customer_name}
-📧 *Email:* ${client.customer_email || 'N/A'}
-📞 *Phone:* ${client.customer_phone}
+👩‍💼 *Mitarbeiter:* ${booking.staff_id}
+📅 *Datum:* ${booking.booking_date}
+⏰ *Uhrzeit:* ${booking.booking_time}
 
-💬 *Special Requests:* ${client.special_requests || 'None'}
-💰 *Price:* $${client.total_price}
+👤 *Kunde:* ${booking.customer_name}
+📧 *E-Mail:* ${booking.customer_email || 'Nicht angegeben'}
+📞 *Telefon:* ${booking.customer_phone}
 
-🕒 *Booked at:* ${new Date(client.created_at).toLocaleString()}
+💬 *Besondere Wünsche:* ${booking.special_requests || 'Keine'}
+💰 *Preis:* €${booking.total_price}
+
+🕒 *Gebucht am:* ${bookedDate}
 `.trim()
 
-  console.log('📨 Sending to Telegram...')
-  console.log('➡️ Message:\n', message)
+  console.log('📨 Sende Nachricht an Telegram...')
+  console.log('➡️ Nachricht:\n', message)
 
   const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: 'POST',
@@ -66,9 +95,9 @@ export async function notifyTelegram(client: any) {
 
   const data = (await response.json()) as TelegramAPIResponse
 
-  console.log('✅ Telegram API Response:', data)
-
-  if (!data.ok) {
-    console.error('❌ Telegram send failed:', data.description)
+  if (data.ok) {
+    console.log('✅ Telegram-Nachricht gesendet!')
+  } else {
+    console.error('❌ Fehler beim Senden an Telegram:', data.description)
   }
 }
